@@ -28,6 +28,10 @@ const UserSchema = new Schema(
     profileImg: {
       type: String,
     },
+    onSignupVerified: {
+      type: Boolean,
+      default: false,
+    },
   },
   { timestamps: true },
 );

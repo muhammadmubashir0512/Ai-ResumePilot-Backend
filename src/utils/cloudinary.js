@@ -7,22 +7,29 @@ cloudinary.config({
   api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
-const uploadOnCloudinary = async (localFilePath) => {
-  try {
-    if (!localFilePath) return null;
+const uploadOnCloudinary = async (fileBuffer, folder = "resumePilot") => {
+  return new Promise((resolve, reject) => {
+    if (!fileBuffer) {
+      return resolve(null);
+    }
 
-    const response = await cloudinary.uploader.upload(localFilePath, {
-      public_id: Date.now().toString(),
-      resource_type: "auto",
-    });
+    const uploadStream = cloudinary.uploader.upload_stream(
+      {
+        folder,
+        resource_type: "image",
+      },
+      (error, result) => {
+        if (error) {
+          console.log("CLOUDINARY ERROR :", error);
+          return reject(error);
+        }
 
-    fs.unlinkSync(localFilePath);
-    return response;
-  } catch (error) {
-    console.log("CLOUDINARY ERROR:", error);
-    fs.unlinkSync(localFilePath);
-    return null;
-  }
+        resolve(result);
+      },
+    );
+
+    uploadStream.end(fileBuffer);
+  });
 };
 
 export default uploadOnCloudinary;

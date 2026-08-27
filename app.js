@@ -19,7 +19,10 @@ app.use(cookieParser());
 import { errorHandler } from "./src/middleware/errorHandler.middleware.js";
 
 import route from "./src/routes/auth.routes.js";
+import resumeRoute from "./src/routes/resumeAnalsys.routes.js";
+
 app.use("/api/v1/auth", route);
+app.use("/api/v1/resume", resumeRoute);
 
 app.use(errorHandler);
 export default app;

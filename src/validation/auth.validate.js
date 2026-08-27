@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-const userValidation = z.object({
+export const userValidation = z.object({
   email: z.string().email({ message: "Invalid email address" }),
   fullName: z
     .string()
@@ -13,4 +13,9 @@ const userValidation = z.object({
     .min(8, { message: "confirmPasswaord must be atleast 8 characters" }),
 });
 
-export default userValidation;
+export const loginValidation = z.object({
+  email: z.string().email({ message: "Invalid email address" }),
+  password: z
+    .string()
+    .min(8, { message: "Passwaord must be atleast 8 characters" }),
+});
