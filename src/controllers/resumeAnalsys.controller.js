@@ -1,10 +1,13 @@
 import ApiResponse from "../utils/ApiResponse.js";
 import {
+  getAverageScore,
+  PreviousResumeReport,
   ResumeAnalysis,
   ResumeImprove,
 } from "../services/resumeAnalysis.service.js";
 import { getValue } from "../utils/redis.js";
 import ApiError from "../utils/ApiError.js";
+import { Resume } from "../models/Resume.model.js";
 
 export const ResumeUpload = async (req, res) => {
   const owner = req.user._id;
@@ -76,4 +79,28 @@ export const getImproveStatus = async (req, res) => {
   return res
     .status(200)
     .json(new ApiResponse(200, statusData, "Status fetched"));
+};
+
+export const avgUserStats = async (req, res) => {
+  const owner = req.user._id;
+  const result = await getAverageScore(owner);
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, result, "User Avg Score fetched successfully"));
+};
+
+export const PreviousResume = async (req, res) => {
+  const owner = req.user._id;
+  const result = await PreviousResumeReport(owner);
+
+  return res
+    .status(200)
+    .json(
+      new ApiResponse(
+        200,
+        result,
+        "Latest Resume Analysis Report fetched successfully",
+      ),
+    );
 };

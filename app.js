@@ -20,9 +20,11 @@ import { errorHandler } from "./src/middleware/errorHandler.middleware.js";
 
 import route from "./src/routes/auth.routes.js";
 import resumeRoute from "./src/routes/resumeAnalsys.routes.js";
+import userRoute from "./src/routes/user.routes.js";
 
 app.use("/api/v1/auth", route);
 app.use("/api/v1/resume", resumeRoute);
+app.use("/api/v1/user", userRoute);
 
 app.use(errorHandler);
 export default app;

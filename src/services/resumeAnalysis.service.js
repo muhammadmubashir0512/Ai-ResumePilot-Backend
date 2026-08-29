@@ -111,3 +111,88 @@ export const ResumeImprove = async ({
 
   return { jobId: job.id, status: "queued" };
 };
+
+export const getAverageScore = async (owner) => {
+  if (!owner) {
+    throw new ApiError(401, "Unathuorized request");
+  }
+
+  const result = await Resume.aggregate([
+    {
+      $match: {
+        owner: owner,
+      },
+    },
+
+    {
+      $group: {
+        _id: "$owner",
+
+        averageAtsScore: {
+          $avg: "$resumeAnalysis.ats_score",
+        },
+
+        averageKeywordMatchScore: {
+          $avg: "$resumeAnalysis.keyword_match.score",
+        },
+
+        totalResumes: {
+          $sum: 1,
+        },
+      },
+    },
+
+    {
+      $project: {
+        averageAtsScore: {
+          $round: ["$averageAtsScore", 0],
+        },
+
+        averageKeywordMatchScore: {
+          $round: ["$averageKeywordMatchScore", 0],
+        },
+
+        totalResumes: 1,
+      },
+    },
+
+    {
+      $project: {
+        averageAtsScore: 1,
+        averageKeywordMatchScore: 1,
+        totalResumes: 1,
+
+        skillGapPercent: {
+          $subtract: [100, "$averageKeywordMatchScore"],
+        },
+      },
+    },
+  ]);
+
+  if (result.length === 0) {
+    return {
+      averageAtsScore: 0,
+      skillGapPercent: 0,
+      totalResumes: 0,
+    };
+  }
+
+  return result;
+};
+
+export const PreviousResumeReport = async (owner) => {
+  if (!owner) {
+    throw new ApiError(401, "Unathourized request");
+  }
+
+  const Result = await Resume.findOne({ owner }).sort({
+    createdAt: -1,
+  });
+  if (!Result) {
+    throw new ApiError(400, "No previous Resume");
+  }
+
+  const resume = Result.resumeAnalysis;
+
+  return resume;
+};

@@ -4,6 +4,7 @@ import {
   getImproveStatus,
   getResumeStatus,
   improveResume,
+  PreviousResume,
   ResumeUpload,
 } from "../controllers/resumeAnalsys.controller.js";
 import upload from "../middleware/multer.middleware.js";
@@ -19,10 +20,11 @@ resumeRoute.post(
   validate(resumeUploadValidation, "body"),
   ResumeUpload,
 );
-
 resumeRoute.get("/analysis/:jobId", verifyJWT, getResumeStatus);
 
 resumeRoute.post("/improve/:ResumeId", verifyJWT, improveResume);
 resumeRoute.get("/improve/result/:jobId", verifyJWT, getImproveStatus);
+
+resumeRoute.get("/latest", verifyJWT, PreviousResume);
 
 export default resumeRoute;
