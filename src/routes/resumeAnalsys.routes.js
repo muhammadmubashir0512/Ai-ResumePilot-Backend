@@ -1,7 +1,9 @@
 import Router from "express";
 import verifyJWT from "../middleware/auth.middleware.js";
 import {
+  getImproveStatus,
   getResumeStatus,
+  improveResume,
   ResumeUpload,
 } from "../controllers/resumeAnalsys.controller.js";
 import upload from "../middleware/multer.middleware.js";
@@ -19,5 +21,8 @@ resumeRoute.post(
 );
 
 resumeRoute.get("/analysis/:jobId", verifyJWT, getResumeStatus);
+
+resumeRoute.post("/improve/:ResumeId", verifyJWT, improveResume);
+resumeRoute.get("/improve/result/:jobId", verifyJWT, getImproveStatus);
 
 export default resumeRoute;

@@ -26,6 +26,17 @@ const resumeModel = new Schema(
       required: true,
     },
 
+    pdfText: {
+      type: String,
+      required: true,
+    },
+
+    ResumeId: {
+      type: String,
+      required: true,
+      unique: true,
+    },
+
     isResumeUpdated: {
       type: Boolean,
       default: false,

@@ -1,5 +1,5 @@
+import "dotenv/config";
 import { v2 as cloudinary } from "cloudinary";
-import fs from "fs";
 
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_APP_NAME,
@@ -16,7 +16,9 @@ const uploadOnCloudinary = async (fileBuffer, folder = "resumePilot") => {
     const uploadStream = cloudinary.uploader.upload_stream(
       {
         folder,
-        resource_type: "image",
+        resource_type: "raw",
+        format: "pdf",
+        type: "authenticated",
       },
       (error, result) => {
         if (error) {
