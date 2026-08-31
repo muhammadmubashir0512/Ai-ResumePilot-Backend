@@ -10,7 +10,7 @@ import {
   Login,
   LogOut,
   VerifyOTP,
-  getUser,
+  OtpResend,
 } from "../controllers/auth.controller.js";
 
 const route = Router();
@@ -18,7 +18,7 @@ const route = Router();
 route.post("/signup", validate(userValidation, "body"), Signup);
 route.post("/login", validate(loginValidation, "body"), Login);
 route.post("/verify-otp", VerifyOTP);
-route.get("/logout", verifyJWT, LogOut);
-route.get("/me", verifyJWT, getUser);
+route.post("/logout", verifyJWT, LogOut);
+route.post("/resend-otp", OtpResend);
 
 export default route;

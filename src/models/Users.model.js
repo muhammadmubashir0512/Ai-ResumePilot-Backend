@@ -32,6 +32,42 @@ const UserSchema = new Schema(
       type: Boolean,
       default: false,
     },
+    subscription: {
+      stripeCustomerId: {
+        type: String,
+        default: null,
+      },
+
+      stripeSubscriptionId: {
+        type: String,
+        default: null,
+      },
+
+      plan: {
+        type: String,
+        enum: ["free", "pro"],
+        default: "free",
+      },
+
+      status: {
+        type: String,
+        enum: [
+          "active",
+          "trialing",
+          "past_due",
+          "canceled",
+          "incomplete",
+          "incomplete_expired",
+          "unpaid",
+        ],
+        default: "active",
+      },
+
+      currentPeriodEnd: {
+        type: Date,
+        default: null,
+      },
+    },
   },
   { timestamps: true },
 );

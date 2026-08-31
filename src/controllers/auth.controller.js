@@ -5,6 +5,7 @@ import {
   logoutUser,
   SignupUser,
   OTPVerification,
+  ResendOTp,
 } from "../services/auth.service.js";
 
 const Login = asyncHandler(async (req, res) => {
@@ -64,7 +65,7 @@ const LogOut = asyncHandler(async (req, res) => {
     .status(200)
     .clearCookie("accessToken")
     .clearCookie("refreshToken")
-    .json(new ApiResponse(200, null, "User LogOut Successfully"));
+    .json(new ApiResponse(200, {}, "User LogOut Successfully"));
 });
 
 const VerifyOTP = asyncHandler(async (req, res) => {
@@ -94,14 +95,14 @@ const VerifyOTP = asyncHandler(async (req, res) => {
     );
 });
 
-const getUser = asyncHandler(async (req, res) => {
-  const user = req.user;
+const OtpResend = asyncHandler(async (req, res) => {
+  const { email } = req.body;
+
+  const otp = await ResendOTp({ email });
 
   return res
     .status(200)
-    .json(new ApiResponse(200, user, "User Data fetched successfully"));
+    .json(new ApiResponse(200, otp, "New OTP send to your email successfully"));
 });
 
-export default getUser;
-
-export { Login, Signup, LogOut, VerifyOTP, getUser };
+export { Login, Signup, LogOut, VerifyOTP, OtpResend };

@@ -7,7 +7,7 @@ import { createResumePdf, PdfToText } from "../services/PdfParse.service.js";
 import { aiServices } from "../services/ai.service.js";
 import { Resume } from "../models/Resume.model.js";
 import { setValue, getValue } from "../utils/redis.js";
-import uploadOnCloudinary from "../utils/cloudinary.js";
+import { uploadOnCloudinary } from "../utils/cloudinary.js";
 
 console.log("Cloudinary config check:", {
   cloud_name: process.env.CLOUDINARY_APP_NAME,
@@ -158,7 +158,7 @@ STRICT RULES:
       const parsedResult = JSON.parse(result);
 
       await Resume.create({
-        ResumeId: job.id,
+        // ResumeId: job.id,
         owner: job.data.owner,
         jobTitle: job.data.jobTittle,
         jobDescription: job.data.jobDescription,

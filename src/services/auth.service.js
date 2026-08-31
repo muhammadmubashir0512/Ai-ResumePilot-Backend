@@ -48,22 +48,27 @@ export const SignupUser = async ({
   const existingUser = await User.findOne({ email });
 
   if (existingUser) {
-    if (!existingUser.onSignupVerified) {
-      // OTP generation for not verified user
-      const otp = generateOTP();
-      await setValue(`signup:otp:${email}`, otp, 300);
-
-      await emailQueue.add("otp", {
-        to: email,
-        otp,
-      });
-
-      return {
-        message: "Account already exists but is not verified. New OTP sent.",
-      };
+    if (existingUser.onSignupVerified) {
+      throw new ApiError(400, "User already exists");
     }
 
-    throw new ApiError(400, "User already exists");
+    // User exists but never verified
+    const otp = generateOTP();
+    await setValue(`signup:otp:${email}`, otp, 300);
+
+    await emailQueue.add("otp", {
+      to: email,
+      otp,
+    });
+
+    const userData = await User.findById(existingUser._id).select(
+      "-refreshToken -password -confirmPasswaord",
+    );
+
+    return {
+      userData,
+      otp,
+    };
   }
 
   // Otp genertion for New User
@@ -128,7 +133,7 @@ export const OTPVerification = async ({ email, otp }) => {
     throw new ApiError(400, "OTP is expired");
   }
 
-  if (SavedOTP !== String(otp)) {
+  if (String(SavedOTP) !== String(otp)) {
     throw new ApiError(400, "Invalid Otp");
   }
 
@@ -137,7 +142,7 @@ export const OTPVerification = async ({ email, otp }) => {
 
   Userexists.onSignupVerified = true;
   Userexists.refreshToken = refreshToken;
-  Userexists.save({ validateBeforeSave: true });
+  await Userexists.save({ validateBeforeSave: true });
 
   await deleteValue(`signup:otp:${email}`);
 
@@ -149,4 +154,29 @@ export const OTPVerification = async ({ email, otp }) => {
     accessToken,
     refreshToken,
   };
+};
+
+export const ResendOTp = async ({ email }) => {
+  const generateOTP = () => {
+    return Math.floor(1000 + Math.random() * 9000);
+  };
+
+  const existingUser = await User.findOne({ email });
+  const signupVerified = existingUser.onSignupVerified;
+
+  if (!signupVerified) {
+    // OTP generation for not verified user
+    const otp = generateOTP();
+    await setValue(`signup:otp:${email}`, otp, 300);
+
+    await emailQueue.add("otp", {
+      to: email,
+      otp,
+    });
+
+    return {
+      otp,
+      message: "New OTP sent.",
+    };
+  }
 };

@@ -34,4 +34,24 @@ const uploadOnCloudinary = async (fileBuffer, folder = "resumePilot") => {
   });
 };
 
-export default uploadOnCloudinary;
+const UploadImage = (file, folder = "resumePilot") => {
+  return new Promise((resolve, reject) => {
+    const uploadStream = cloudinary.uploader.upload_stream(
+      {
+        folder,
+        resource_type: "image",
+      },
+      (error, result) => {
+        if (error) {
+          console.log("Cloudinary error...", error);
+          return reject(error);
+        }
+        resolve(result);
+      },
+    );
+
+    uploadStream.end(file);
+  });
+};
+
+export { UploadImage, uploadOnCloudinary };
