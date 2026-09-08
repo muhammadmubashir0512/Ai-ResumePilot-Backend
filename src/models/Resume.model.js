@@ -23,18 +23,10 @@ const resumeModel = new Schema(
 
     resumeAnalysis: {
       type: Schema.Types.Mixed,
-      required: true,
     },
 
     pdfText: {
       type: String,
-      required: true,
-    },
-
-    ResumeId: {
-      type: String,
-      required: true,
-      unique: true,
     },
 
     isResumeUpdated: {

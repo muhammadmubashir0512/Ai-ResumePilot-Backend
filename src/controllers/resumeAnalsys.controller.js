@@ -7,7 +7,7 @@ import {
 } from "../services/resumeAnalysis.service.js";
 import { getValue } from "../utils/redis.js";
 import ApiError from "../utils/ApiError.js";
-import { Resume } from "../models/Resume.model.js";
+import { incrementUsage } from "../services/checkout.service.js";
 
 export const ResumeUpload = async (req, res) => {
   const owner = req.user._id;
@@ -19,6 +19,11 @@ export const ResumeUpload = async (req, res) => {
     jobTittle,
     jobDescription,
     resume,
+  });
+
+  await incrementUsage({
+    subscriptionId: req.subscription._id,
+    feature: "resumeAnalysis",
   });
 
   if (result.cached) {
@@ -55,6 +60,11 @@ export const improveResume = async (req, res) => {
     keywords,
     improvements,
     ResumeId,
+  });
+
+  await incrementUsage({
+    subscriptionId: req.subscription._id,
+    feature: "resumeImprovement",
   });
 
   if (result.cached) {

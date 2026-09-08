@@ -2,6 +2,7 @@ import { User } from "../models/Users.model.js";
 import { emailQueue } from "../Queues/email.queue.js";
 import ApiError from "../utils/ApiError.js";
 import { deleteValue, getValue, setValue } from "../utils/redis.js";
+import { Subscription } from "../models/Subscription.model.js";
 
 export const LoginUser = async ({ email, password }) => {
   const existedUser = await User.findOne({ email });
@@ -85,6 +86,12 @@ export const SignupUser = async ({
     fullName,
     password,
     onSignupVerified: false,
+  });
+
+  await Subscription.create({
+    SubscribedUser: newUser._id,
+    subscriptionPlan: "free",
+    subscriptionStatus: "active",
   });
 
   const userData = await User.findById(newUser._id).select(

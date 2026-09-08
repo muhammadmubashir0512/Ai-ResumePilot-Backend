@@ -8,6 +8,7 @@ import { aiServices } from "../services/ai.service.js";
 import { Resume } from "../models/Resume.model.js";
 import { setValue, getValue } from "../utils/redis.js";
 import { uploadOnCloudinary } from "../utils/cloudinary.js";
+import ApiError from "../utils/ApiError.js";
 
 console.log("Cloudinary config check:", {
   cloud_name: process.env.CLOUDINARY_APP_NAME,
@@ -20,7 +21,7 @@ const worker = new Worker(
   async (job) => {
     try {
       await setValue(
-        `job-status:${job.id}`,
+        `job-status:${job.data.resumeId}`,
         { stage: "parsing_pdf", status: "processing" },
         600,
       );
@@ -29,8 +30,15 @@ const worker = new Worker(
 
       const pdfText = await PdfToText(resumeBuffer);
 
+      if (!pdfText || pdfText.trim().length < 50) {
+        throw new ApiError(
+          400,
+          "The uploaded PDF does not contain readable text. Please upload a valid resume.",
+        );
+      }
+
       await setValue(
-        `job-status:${job.id}`,
+        `job-status:${job.data.resumeId}`,
         { stage: "analyzing", status: "processing" },
         600,
       );
@@ -47,6 +55,21 @@ ${job.data.jobDescription}
 RESUME:
 ${pdfText}
 
+STEP 1 — VALIDATION (perform this before anything else):
+
+Check ALL of the following:
+- Is the JOB TITLE a real, coherent job title (not gibberish, random characters, or meaningless text)?
+- Is the JOB DESCRIPTION a real, coherent description of a job role (not gibberish, random characters, spam, or unrelated content)?
+- Is the pdfText an actual resume/CV (containing realistic sections such as contact info, experience, education, skills, or projects) — NOT a portfolio site dump, cover letter, random document, or unrelated content?
+
+If ANY of these checks fail, STOP immediately and return ONLY this JSON structure, nothing else:
+{
+  "isValid": false,
+  "reason": "<short, specific explanation of what is invalid — e.g. 'Job title is not a real job title', 'Resume does not appear to be an actual resume'>"
+}
+
+STEP 2 — ANALYSIS (only if ALL validation checks in Step 1 pass):
+
 Your task is to analyze ONLY the provided resume against the provided job title and job description.
 
 Do NOT:
@@ -57,33 +80,36 @@ Do NOT:
 - Change or rewrite the candidate's actual experience as if it were factual.
 - Treat missing information as present.
 
-Return the analysis with exactly these fields:
+Return the analysis with exactly these fields (and include "isValid": true as the first key):
 
-1. job_title
+1. isValid
+- Must be true (since validation passed).
+
+2. job_title
 - Return the exact job title provided above, unchanged: "${job.data.jobTittle}"
 
-2. ats_score
+3. ats_score
 - Overall resume match score, 0-100.
 
-3. keyword_match
+4. keyword_match
 - score: keyword match score, 0-100.
 - found_keywords: array of important keywords found in the resume.
 - missing_keywords: array of important keywords from the job description missing from the resume.
 
-4. formatting
+5. formatting
 - score: formatting score, 0-100, based on structure, readability, consistency, and ATS-friendliness.
 - status: one of "Excellent", "Good", "Average", "Bad" — should correspond logically to the score (e.g. 90+ → "Excellent", 75-89 → "Good", 50-74 → "Average", below 50 → "Bad").
 - suggestion: max 2-3 lines, a short actionable note on formatting (only if status is not "Excellent"; otherwise a brief positive note).
 
-5. key_strengths
+6. key_strengths
 - Array of 3 to 5 short points (max ~10 words each). The strongest aspects of the resume specifically for this job.
 
-6. top_improvements
+7. top_improvements
 - Array of 3 to 5 objects, each with:
   - title: short improvement title (max 6 words)
   - body: actionable recommendation, max 2 lines
 
-7. sections
+8. sections
 - An object with exactly these 4 keys: contact_info, education, experience, projects.
 - Each key's value is an object with:
   - status: one of "Good", "Normal", "Weak", "Missing"
@@ -93,10 +119,10 @@ Return the analysis with exactly these fields:
     - "Good": the section is complete, relevant, and strong for this job.
   - note: max 1 line explaining the status (e.g. "No phone number listed", "Missing quantified achievements", "Not provided in resume").
 
-8. job_match
+9. job_match
 - Max 2-3 lines explaining how well the resume matches the job. Mention relevant skills, experience, education, and projects only when they actually appear in the resume.
 
-9. summary
+10. summary
 - Max 2-3 lines, concise final assessment of the candidate's suitability for the given job.
 
 IMPORTANT:
@@ -109,18 +135,25 @@ Keep every field within its stated length limit — do not exceed it.
       const instruction = `
 You are an expert ATS Resume Analyzer.
 
-Your task is to analyze ONLY the provided resume against the provided job title and job description.
+Your task is to FIRST validate the inputs, and ONLY IF they are valid, analyze the resume against the provided job title and job description.
 
-STRICT RULES:
-1. Do not discuss anything unrelated to the provided resume or job.
-2. Do not invent, assume, or fabricate any candidate information.
-3. Do not add skills, experience, education, projects, achievements, or keywords that are not present in the provided data.
-4. If required information is not available in the resume, reflect that clearly using the "Missing" or "Weak" status in the "sections" field, or an empty array/value elsewhere — never fabricate a fallback.
-5. All scores must be based only on the provided resume and job description.
-6. Respect every field's length limit exactly.
-7. Follow this exact JSON structure — do not add, remove, or rename any keys:
+STRICT VALIDATION RULES:
+1. The job title must be a real, coherent job title. Reject gibberish, random characters, single repeated letters, or meaningless strings.
+2. The job description must be a real, coherent description of job responsibilities/requirements. Reject gibberish, random characters, or content unrelated to a job posting.
+3. The resume must be an actual resume/CV with realistic structure (contact info, experience, education, skills, or projects). Reject portfolios, cover letters, unrelated documents, or gibberish text.
+4. If ANY of the above checks fail, return ONLY: { "isValid": false, "reason": string }. Do not include any other fields. Do not perform any analysis.
+
+STRICT ANALYSIS RULES (only apply if validation passes):
+5. Do not discuss anything unrelated to the provided resume or job.
+6. Do not invent, assume, or fabricate any candidate information.
+7. Do not add skills, experience, education, projects, achievements, or keywords that are not present in the provided data.
+8. If required information is not available in the resume, reflect that clearly using the "Missing" or "Weak" status in the "sections" field, or an empty array/value elsewhere — never fabricate a fallback.
+9. All scores must be based only on the provided resume and job description.
+10. Respect every field's length limit exactly.
+11. If validation passes, follow this exact JSON structure — do not add, remove, or rename any keys:
 
 {
+  "isValid": true,
   "job_title": string,
   "ats_score": number,
   "keyword_match": {
@@ -147,29 +180,38 @@ STRICT RULES:
   "summary": string
 }
 
-8. Return ONLY valid JSON matching the structure above.
-9. Do NOT return Markdown.
-10. Do NOT wrap the response in \`\`\`json or any other code block.
-11. Do NOT include any explanation, introduction, or text outside the JSON object.
+12. Return ONLY valid JSON matching one of the two structures above.
+13. Do NOT return Markdown.
+14. Do NOT wrap the response in \`\`\`json or any other code block.
+15. Do NOT include any explanation, introduction, or text outside the JSON object.
 `;
 
       const result = await aiServices({ prompt, instruction });
 
       const parsedResult = JSON.parse(result);
 
-      await Resume.create({
-        // ResumeId: job.id,
-        owner: job.data.owner,
-        jobTitle: job.data.jobTittle,
-        jobDescription: job.data.jobDescription,
-        pdfText,
-        resumeAnalysis: parsedResult,
-      });
+      if (parsedResult.isValid === false) {
+        throw new ApiError(
+          400,
+          parsedResult.reason ||
+            "Invalid resume, job title, or job description provided.",
+        );
+      }
+
+      const foundResume = await Resume.findById(job.data.resumeId);
+
+      if (!foundResume) {
+        throw new ApiError(404, "Resume not found");
+      }
+
+      foundResume.pdfText = pdfText;
+      foundResume.resumeAnalysis = parsedResult;
+      await foundResume.save();
 
       await setValue(job.data.cacheKey, parsedResult, 600);
 
       await setValue(
-        `job-status:${job.id}`,
+        `job-status:${job.data.resumeId}`,
         { stage: "completed", status: "completed", result: parsedResult },
         600,
       );
@@ -177,7 +219,7 @@ STRICT RULES:
       return parsedResult;
     } catch (error) {
       await setValue(
-        `job-status:${job.id}`,
+        `job-status:${job.data.resumeId}`,
         { stage: "failed", status: "failed", error: error.message },
         600,
       );
@@ -195,7 +237,7 @@ const improveWorker = new Worker(
   async (job) => {
     try {
       await setValue(
-        `job-status:${job.id}`,
+        `job-status:${job.data.ResumeId}`,
         { stage: "parsing_pdf", status: "processing" },
         600,
       );
@@ -203,7 +245,7 @@ const improveWorker = new Worker(
       const previousResume = job.data.previousResume;
 
       await setValue(
-        `job-status:${job.id}`,
+        `job-status:${job.data.ResumeId}`,
         { stage: "analyzing", status: "processing" },
         600,
       );
@@ -406,7 +448,7 @@ STRICT RULES:
         },
       );
 
-      const resume = await Resume.findOne({ ResumeId: job.data.ResumeId });
+      const resume = await Resume.findById(job.data.ResumeId);
 
       if (!resume) {
         throw new ApiError(404, "Resume not found");
@@ -427,7 +469,7 @@ STRICT RULES:
       await setValue(job.data.cacheKey, finalResult, 600);
 
       await setValue(
-        `job-status:${job.id}`,
+        `job-status:${job.data.ResumeId}`,
         {
           stage: "completed",
           status: "completed",
@@ -439,7 +481,7 @@ STRICT RULES:
       return finalResult;
     } catch (error) {
       await setValue(
-        `job-status:${job.id}`,
+        `job-status:${job.data.ResumeId}`,
         { stage: "failed", status: "failed", error: error.message },
         600,
       );

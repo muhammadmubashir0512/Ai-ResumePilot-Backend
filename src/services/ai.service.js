@@ -1,18 +1,13 @@
 import { aiClient } from "../clients/ai.client.js";
 
 export const aiServices = async ({ prompt, instruction }) => {
-  const response = await aiClient.models.generateContent({
-    model: "gemini-3.6-flash",
-    contents: [
-      {
-        role: "user",
-        parts: [{ text: prompt }],
-      },
+  const response = await aiClient.chat.completions.create({
+    model: "openai/gpt-oss-120b",
+    messages: [
+      { role: "system", content: instruction },
+      { role: "user", content: prompt },
     ],
-    config: {
-      systemInstruction: instruction,
-    },
   });
 
-  return response.text;
+  return response.choices[0].message.content;
 };

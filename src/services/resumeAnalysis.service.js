@@ -17,7 +17,7 @@ export const ResumeAnalysis = async ({
   const allowedTypes = ["application/pdf"];
 
   if (!allowedTypes.includes(resume.mimetype)) {
-    throw new ApiError(400, "Upload resume in only PDF or DOCX format");
+    throw new ApiError(400, "Upload resume in only PDF format");
   }
 
   const resumeHash = crypto.hash("sha256", resume.buffer);
@@ -37,13 +37,19 @@ export const ResumeAnalysis = async ({
 
   const resumeReference = resume.buffer.toString("base64");
 
-  const job = await ResumeQueue.add(
-    "resum-analysis",
+  const createdResume = await Resume.create({
+    owner: owner,
+    jobTitle: jobTittle,
+    jobDescription: jobDescription,
+  });
+
+  await ResumeQueue.add(
+    "resume-analysis",
     {
+      resumeId: createdResume._id.toString(),
       resume: resumeReference,
-      owner: owner,
-      jobTittle: jobTittle,
-      jobDescription: jobDescription,
+      jobTittle,
+      jobDescription,
       cacheKey,
     },
     {
@@ -53,12 +59,12 @@ export const ResumeAnalysis = async ({
   );
 
   await setValue(
-    `job-status:${job.id}`,
+    `job-status:${createdResume._id}`,
     { stage: "queued", status: "waiting" },
     600,
   );
 
-  return { jobId: job.id, status: "queued" };
+  return { jobId: createdResume._id, status: "queued" };
 };
 
 export const ResumeImprove = async ({
@@ -67,7 +73,7 @@ export const ResumeImprove = async ({
   improvements,
   ResumeId,
 }) => {
-  const result = await Resume.findOne({ ResumeId });
+  const result = await Resume.findById(ResumeId);
 
   if (!result) {
     throw new ApiError(404, "Resume analysis not found");
@@ -84,7 +90,7 @@ export const ResumeImprove = async ({
     return { cached: true, result: cachedResult };
   }
 
-  const job = await ImproveResumeQueue.add(
+  await ImproveResumeQueue.add(
     "improve-resume",
     {
       owner,
@@ -104,12 +110,12 @@ export const ResumeImprove = async ({
   );
 
   await setValue(
-    `job-status:${job.id}`,
+    `job-status:${ResumeId}`,
     { stage: "queued", status: "waiting" },
     600,
   );
 
-  return { jobId: job.id, status: "queued" };
+  return { jobId: ResumeId, status: "queued" };
 };
 
 export const getAverageScore = async (owner) => {
@@ -177,7 +183,7 @@ export const getAverageScore = async (owner) => {
     };
   }
 
-  return result;
+  return result[0];
 };
 
 export const PreviousResumeReport = async (owner) => {
@@ -188,8 +194,9 @@ export const PreviousResumeReport = async (owner) => {
   const Result = await Resume.findOne({ owner }).sort({
     createdAt: -1,
   });
+
   if (!Result) {
-    throw new ApiError(400, "No previous Resume");
+    return;
   }
 
   const resume = Result.resumeAnalysis;
