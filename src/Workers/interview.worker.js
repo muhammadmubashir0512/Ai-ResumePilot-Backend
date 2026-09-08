@@ -129,43 +129,6 @@ Return only valid JSON.`;
   },
 );
 
-const interviewAnswerWorker = new Worker(
-  "mock-Interview-answer",
-  async (job) => {
-    try {
-      const prompt = `Evaluate the candidate's answer to the current interview question and generate the next interview question.
-
-Interview Context:
-${}
-
-Current Question:
-${currentQuestion}
-
-Candidate Answer:
-${answer}
-
-Current Question Index:
-${questionIndex}
-
-Generate an evaluation of the candidate's answer and decide the most appropriate next interview question.
-
-Return exactly this JSON format:
-
-{
-  "score": 0,
-  "feedback": "Brief and specific feedback about the candidate's answer.",
-  "nextQuestion": "The next interview question."
-}`
-    } catch (error) {
-      throw error;
-    }
-  },
-  {
-    connection: bullMqConnection,
-    concurrency: 5,
-  },
-);
-
 interviewWorker.on("completed", (job) => {
   console.log(`Interview job ${job.id} is completed`);
 });

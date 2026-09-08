@@ -53,6 +53,17 @@ const InterviewSchema = new Schema(
       default: 0,
     },
 
+    maxQuestions: {
+      type: Number,
+      default: 10,
+      min: 1,
+    },
+
+    startedAt: {
+      type: Date,
+      default: null,
+    },
+
     questions: [
       {
         question: {
