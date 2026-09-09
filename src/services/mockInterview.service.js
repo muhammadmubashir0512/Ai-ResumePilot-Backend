@@ -24,7 +24,7 @@ export const InterviewService = async ({ user, resumeId }) => {
     jobTitle: userResume.jobTitle,
     jobDescription: userResume.jobDescription,
     resumeText: userResume.pdfText,
-    language: "Roman Urdu ",
+    language: "English",
     interviewType: "behavioral",
     difficulty: "easy",
     status: "pending",
@@ -370,4 +370,89 @@ For the final question return exactly:
     interviewCompleted: false,
     parsedResult,
   };
+};
+
+export const textToSpeech = async ({ text }) => {
+  if (!text) {
+    throw new ApiError(400, "Text is required");
+  }
+
+  const response = await fetch("https://api.groq.com/openai/v1/audio/speech", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${process.env.GROK_API_KEY}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model: "canopylabs/orpheus-v1-english",
+      input: text,
+      voice: "autumn",
+      response_format: "wav",
+    }),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new ApiError(response.status, `TTS generation failed: ${errorText}`);
+  }
+
+  const audioBuffer = Buffer.from(await response.arrayBuffer());
+
+  return audioBuffer;
+};
+
+export const speechToText = async ({ audioBuffer, filename }) => {
+  if (!audioBuffer) {
+    throw new ApiError(400, "Audio is required");
+  }
+
+  const formData = new FormData();
+
+  formData.append(
+    "file",
+    new Blob([audioBuffer], { type: "audio/webm" }),
+    filename || "answer.webm",
+  );
+
+  formData.append("model", "whisper-large-v3-turbo");
+  formData.append("response_format", "json");
+
+  const response = await fetch(
+    "https://api.groq.com/openai/v1/audio/transcriptions",
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${process.env.GROK_API_KEY}`,
+      },
+      body: formData,
+    },
+  );
+
+  if (!response.ok) {
+    const errorText = await response.text();
+
+    throw new ApiError(response.status, `STT generation failed: ${errorText}`);
+  }
+
+  const result = await response.json();
+
+  return result.text;
+};
+
+export const PreviousInterviewReport = async (owner) => {
+  if (!owner) {
+    throw new ApiError(401, "Unathourized request");
+  }
+
+  const Result = await Resume.findOne({ owner }).sort({
+    createdAt: -1,
+  });
+
+  if (!Result) {
+    return;
+  }
+
+  const resume = Result.resumeAnalysis;
+
+  return resume;
 };

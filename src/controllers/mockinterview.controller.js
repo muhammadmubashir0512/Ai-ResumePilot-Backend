@@ -3,6 +3,9 @@ import ApiResponse from "../utils/ApiResponse.js";
 import {
   answerCheck,
   InterviewService,
+  textToSpeech,
+  speechToText,
+  PreviousInterviewReport,
 } from "../services/mockInterview.service.js";
 import { getValue } from "../utils/redis.js";
 import ApiError from "../utils/ApiError.js";
@@ -31,8 +34,17 @@ const getInterviewStatus = async (req, res) => {
 
 const interviewQuestionAnswer = asyncHandler(async (req, res) => {
   const user = req.user._id;
-  const { answer, currentQuestion } = req.body;
+  const { currentQuestion } = req.body;
   const { interviewId } = req.params;
+
+  if (!req.file) {
+    throw new ApiError(400, "Audio file is required");
+  }
+
+  const answer = await speechToText({
+    audioBuffer: req.file.buffer,
+    filename: req.file.originalname,
+  });
 
   const result = await answerCheck({
     user,
@@ -41,9 +53,50 @@ const interviewQuestionAnswer = asyncHandler(async (req, res) => {
     interviewId,
   });
 
-  return res
-    .status(200)
-    .json(new ApiResponse(200, result, "Answer submitted successfully"));
+  return res.status(200).json(
+    new ApiResponse(
+      200,
+      {
+        answer,
+        ...result,
+      },
+      "Answer submitted successfully",
+    ),
+  );
 });
 
-export { MockInterview, getInterviewStatus, interviewQuestionAnswer };
+const AiInterviewspeak = asyncHandler(async (req, res) => {
+  const { text } = req.body;
+
+  const audioBuffer = await textToSpeech({ text });
+
+  res.set({
+    "Content-Type": "audio/wav",
+    "Content-Length": audioBuffer.length,
+    "Cache-Control": "no-cache",
+  });
+
+  return res.send(audioBuffer);
+});
+
+export const PreviousInterview = async (req, res) => {
+  const owner = req.user._id;
+  const result = await PreviousInterviewReport(owner);
+
+  return res
+    .status(200)
+    .json(
+      new ApiResponse(
+        200,
+        result,
+        "Latest Resume Analysis Report fetched successfully",
+      ),
+    );
+};
+
+export {
+  MockInterview,
+  getInterviewStatus,
+  interviewQuestionAnswer,
+  AiInterviewspeak,
+};

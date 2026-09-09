@@ -55,7 +55,7 @@ const InterviewSchema = new Schema(
 
     maxQuestions: {
       type: Number,
-      default: 10,
+      default: 5,
       min: 1,
     },
 
