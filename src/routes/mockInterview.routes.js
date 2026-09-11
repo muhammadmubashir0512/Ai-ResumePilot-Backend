@@ -5,12 +5,18 @@ import {
   getInterviewStatus,
   interviewQuestionAnswer,
   MockInterview,
+  PreviousInterview,
 } from "../controllers/mockinterview.controller.js";
 import upload from "../middleware/multer.middleware.js";
 
 const interviewRoute = new Router();
 
-interviewRoute.post("/start/:resumeId", verifyJWT, MockInterview);
+interviewRoute.post(
+  "/start",
+  verifyJWT,
+  upload.single("resume"),
+  MockInterview,
+);
 interviewRoute.get("/status/:jobId", verifyJWT, getInterviewStatus);
 interviewRoute.post(
   "/answer/:interviewId",
@@ -19,5 +25,7 @@ interviewRoute.post(
   interviewQuestionAnswer,
 );
 interviewRoute.post("/speak", AiInterviewspeak);
+
+interviewRoute.get("/latest", verifyJWT, PreviousInterview);
 
 export default interviewRoute;

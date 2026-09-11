@@ -4,29 +4,73 @@ import { Interview } from "../models/Interview.model.js";
 import { InterviewQueue } from "../Queues/interview.queue.js";
 import { setValue } from "../utils/redis.js";
 import { aiServices } from "./ai.service.js";
+import { PdfToText } from "./PdfParse.service.js";
 
-export const InterviewService = async ({ user, resumeId }) => {
+export const InterviewService = async ({
+  user,
+  resumeId,
+  targetRole,
+  interviewType = "behavioral",
+  difficulty = "easy",
+  language = "English",
+  resumeFile,
+}) => {
   if (!user) {
     throw new ApiError(401, "Unauthorized Request");
   }
 
-  const userResume = await Resume.findOne({
-    _id: resumeId,
-    owner: user,
-  });
+  let resumeText;
+  let jobTitle;
+  let jobDescription;
 
-  if (!userResume) {
-    throw new ApiError(400, "No Resume Analysis Found");
+  if (resumeId) {
+    const userResume = await Resume.findOne({
+      _id: resumeId,
+      owner: user,
+    });
+
+    if (!userResume) {
+      throw new ApiError(400, "No Resume Analysis Found");
+    }
+
+    if (!userResume.pdfText) {
+      throw new ApiError(400, "Resume text not available");
+    }
+
+    resumeText = userResume.pdfText;
+    jobTitle = userResume.jobTitle;
+    jobDescription = userResume.jobDescription || "";
+  } else {
+    if (!resumeFile) {
+      throw new ApiError(400, "Resume is required");
+    }
+
+    if (resumeFile.mimetype !== "application/pdf") {
+      throw new ApiError(400, "Upload resume in only PDF format");
+    }
+
+    if (!targetRole || !targetRole.trim()) {
+      throw new ApiError(400, "Target role is required");
+    }
+
+    resumeText = await PdfToText(resumeFile.buffer);
+
+    if (!resumeText || !resumeText.trim()) {
+      throw new ApiError(400, "Unable to extract text from resume");
+    }
+
+    jobTitle = targetRole.trim();
+    jobDescription = "";
   }
 
   const New_Interview = await Interview.create({
     owner: user,
-    jobTitle: userResume.jobTitle,
-    jobDescription: userResume.jobDescription,
-    resumeText: userResume.pdfText,
-    language: "English",
-    interviewType: "behavioral",
-    difficulty: "easy",
+    jobTitle,
+    jobDescription,
+    resumeText,
+    language,
+    interviewType,
+    difficulty,
     status: "pending",
     currentQuestionIndex: 0,
     startedAt: new Date(),
@@ -39,6 +83,7 @@ export const InterviewService = async ({ user, resumeId }) => {
     language: New_Interview.language,
     interviewType: New_Interview.interviewType,
     difficulty: New_Interview.difficulty,
+    maxQuestions: New_Interview.maxQuestions,
   };
 
   await InterviewQueue.add(
@@ -95,25 +140,28 @@ export const answerCheck = async ({
     throw new ApiError(400, "Please give an answer");
   }
 
+  const currentQuestionNumber = Number(currentQuestion);
+
   const questionIndexCheck =
-    Number(currentQuestion) === userInterview.currentQuestionIndex;
+    currentQuestionNumber === userInterview.currentQuestionIndex;
 
   if (!questionIndexCheck) {
     throw new ApiError(400, "Question index not match");
   }
 
-  const question = userInterview.questions[currentQuestion];
+  const question = userInterview.questions[currentQuestionNumber];
 
   if (!question) {
     throw new ApiError(400, "Question not found");
   }
 
-  const isLastQuestion = currentQuestion === userInterview.maxQuestions - 1;
+  const isLastQuestion =
+    currentQuestionNumber === userInterview.maxQuestions - 1;
 
   const interviewHistory = userInterview.questions.map((q, index) => ({
     questionNumber: index + 1,
     question: q.question,
-    answer: index === currentQuestion ? answer : q.answer,
+    answer: index === currentQuestionNumber ? answer : q.answer,
     score: q.score,
     feedback: q.feedback,
     type: q.type,
@@ -139,10 +187,10 @@ Maximum Questions:
 ${userInterview.maxQuestions}
 
 Current Question Index:
-${currentQuestion}
+${currentQuestionNumber}
 
 Current Question Number:
-${currentQuestion + 1}
+${currentQuestionNumber + 1}
 
 Is Final Question:
 ${isLastQuestion}
@@ -308,9 +356,10 @@ For the final question return exactly:
     throw new ApiError(500, "AI feedback missing");
   }
 
-  userInterview.questions[currentQuestion].answer = answer;
-  userInterview.questions[currentQuestion].score = parsedResult.score;
-  userInterview.questions[currentQuestion].feedback = parsedResult.feedback;
+  userInterview.questions[currentQuestionNumber].answer = answer;
+  userInterview.questions[currentQuestionNumber].score = parsedResult.score;
+  userInterview.questions[currentQuestionNumber].feedback =
+    parsedResult.feedback;
 
   if (isLastQuestion) {
     const scores = userInterview.questions
@@ -337,7 +386,7 @@ For the final question return exactly:
     await userInterview.save();
 
     return {
-      currentQuestion,
+      currentQuestion: currentQuestionNumber,
       interviewCompleted: true,
       parsedResult: {
         ...parsedResult,
@@ -444,7 +493,7 @@ export const PreviousInterviewReport = async (owner) => {
     throw new ApiError(401, "Unathourized request");
   }
 
-  const Result = await Resume.findOne({ owner }).sort({
+  const Result = await Interview.findOne({ owner }).sort({
     createdAt: -1,
   });
 
@@ -452,7 +501,7 @@ export const PreviousInterviewReport = async (owner) => {
     return;
   }
 
-  const resume = Result.resumeAnalysis;
-
-  return resume;
+  return {
+    Result,
+  };
 };

@@ -16,7 +16,6 @@ const InterviewSchema = new Schema(
 
     jobDescription: {
       type: String,
-      required: true,
       trim: true,
     },
 
@@ -55,7 +54,7 @@ const InterviewSchema = new Schema(
 
     maxQuestions: {
       type: Number,
-      default: 5,
+      default: 2,
       min: 1,
     },
 

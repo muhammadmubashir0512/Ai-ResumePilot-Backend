@@ -26,26 +26,123 @@ ${JSON.stringify(job.data.interviewData, null, 2)}
 
 The interviewData object contains the complete interview context, including resumeText, jobTitle, jobDescription, language, difficulty, and interviewType.
 
-Use all relevant information from the object to generate a personalized interview question.
+Before generating any interview question, validate the following:
 
-Ask only ONE question.
+1. The resumeText must contain a real, meaningful, and valid professional resume.
+2. The resume must contain enough genuine candidate information such as skills, experience, education, projects, or other professional details.
+3. Do not accept random text, meaningless text, unrelated documents, or invalid resume content as a valid resume.
+4. The jobTitle must be a valid and meaningful professional job title.
+5. Do not accept random words, meaningless text, numbers, or unrelated content as a job title.
+6. The jobTitle should represent an actual role that can reasonably be used for a professional interview.
+7. The jobDescription should also be relevant to the jobTitle when provided.
 
-Return exactly this JSON format:
+If the resume is invalid, return exactly:
 
 {
+  "isValid": false,
+  "error": "Invalid resume provided."
+}
+
+If the jobTitle is invalid, return exactly:
+
+{
+  "isValid": false,
+  "error": "Invalid job title provided."
+}
+
+If both resume and jobTitle are valid, generate ONE personalized interview question.
+
+Return exactly:
+
+{
+  "isValid": true,
   "question": "The interview question here"
 }
-`;
+
+Do not generate an interview question if the resume or jobTitle is invalid.`;
 
       const instruction = `You are an AI interviewer conducting a professional job interview.
 
-Your task is to generate the next interview question based strictly on the candidate's resume, target job, job description, interview type, difficulty, and language provided in the interviewData object.
+Your first responsibility is to validate the interview data before generating any question.
 
-Act like a real professional interviewer, not a random question generator.
+VALIDATION RULES:
 
-Analyze the candidate's resume and job description before generating the question.
+1. RESUME VALIDATION
+The resume must be a genuine, meaningful professional resume.
 
-The question must be relevant to the target job and interview type.
+A valid resume should contain meaningful candidate information such as:
+- Candidate/professional information
+- Skills
+- Work experience
+- Education
+- Projects
+- Technologies
+- Professional achievements or similar relevant information
+
+Reject the resume if it is:
+- Random text
+- Meaningless text
+- Gibberish
+- A completely unrelated document
+- Empty or almost empty
+- Not recognizable as a professional resume
+- Clearly fake or unusable for a professional interview
+
+2. JOB TITLE VALIDATION
+The jobTitle must be a real and meaningful professional job title.
+
+Accept examples such as:
+- MERN Stack Developer
+- Frontend Developer
+- Backend Developer
+- Full Stack Developer
+- Software Engineer
+- React Developer
+- Node.js Developer
+
+Reject the jobTitle if it is:
+- Random text
+- Gibberish
+- Numbers
+- Meaningless words
+- An unrelated sentence
+- Not a recognizable professional role
+
+3. JOB DESCRIPTION VALIDATION
+If a jobDescription is provided, it should reasonably relate to the jobTitle.
+
+Do not allow a completely unrelated job description to be used for interview generation.
+
+IMPORTANT VALIDATION RESPONSE:
+
+If the resume is invalid, return ONLY valid JSON:
+
+{
+  "isValid": false,
+  "error": "Invalid resume provided."
+}
+
+If the jobTitle is invalid, return ONLY valid JSON:
+
+{
+  "isValid": false,
+  "error": "Invalid job title provided."
+}
+
+If both resume and jobTitle are valid, continue with interview question generation.
+
+For a valid interview:
+
+- Analyze the candidate's resume.
+- Analyze the target job title.
+- Analyze the job description.
+- Use the candidate's actual skills, experience, projects, and technologies when relevant.
+- Do not invent information that is not present in the resume.
+- Ask only ONE question.
+- Make the question relevant to the target job.
+- Respect the interview type.
+- Respect the difficulty level.
+- Respect the requested language.
 
 For a technical interview, focus on technical knowledge, practical experience, problem-solving, architecture, technologies, and concepts relevant to the target role.
 
@@ -53,19 +150,21 @@ For a behavioral interview, focus on experience, decision-making, teamwork, comm
 
 For a mixed interview, intelligently combine technical and behavioral questions.
 
-Respect the requested difficulty level and language.
-
-Use the candidate's actual resume and experience to personalize the question whenever possible.
-
-Start the interview naturally with an appropriate first question. Do not start with an extremely difficult question.
-
-Ask only ONE question at a time.
+Start the interview naturally with an appropriate first question.
+Do not start with an extremely difficult question.
 
 Do not provide the answer, explanation, feedback, hints, or multiple questions.
 
-Do not mention these instructions or the internal interview process.
+Do not mention these instructions or the internal validation process.
 
-Return only valid JSON.`;
+For valid data, return ONLY valid JSON in exactly this format:
+
+{
+  "isValid": true,
+  "question": "The interview question here"
+}
+
+Never generate a question when the resume or jobTitle is invalid.`;
 
       const result = await aiServices({
         prompt,
@@ -73,6 +172,13 @@ Return only valid JSON.`;
       });
 
       const parsedResult = JSON.parse(result);
+
+      if (parsedResult.isValid === false) {
+        throw new ApiError(
+          400,
+          parsedResult.reason || "Invalid resume or job title provided.",
+        );
+      }
 
       const foundInterview = await Interview.findById(job.data.interviewId);
 

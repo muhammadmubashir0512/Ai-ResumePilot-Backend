@@ -1,6 +1,7 @@
 import asyncHandler from "../utils/asyncHandler.js";
 import ApiResponse from "../utils/ApiResponse.js";
 import { ProfileUpdation, UpdatePassword } from "../services/user.service.js";
+import { getAverageScore } from "../services/user.service.js";
 
 const getUser = asyncHandler(async (req, res) => {
   const user = req.user;
@@ -33,4 +34,13 @@ const PasswaordUpdate = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200, {}, "Password Updated Sucessfully"));
 });
 
-export { getUser, updateProfileInfo, PasswaordUpdate };
+const avgUserStats = async (req, res) => {
+  const owner = req.user._id;
+  const result = await getAverageScore(owner);
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, result, "User Avg Score fetched successfully"));
+};
+
+export { getUser, updateProfileInfo, PasswaordUpdate, avgUserStats };

@@ -12,15 +12,28 @@ import ApiError from "../utils/ApiError.js";
 
 const MockInterview = asyncHandler(async (req, res) => {
   const user = req.user._id;
-  const { resumeId } = req.params;
-  const result = await InterviewService({ user, resumeId });
+
+  const { resumeId, targetRole, interviewType, difficulty, language } =
+    req.body;
+
+  const result = await InterviewService({
+    user,
+    resumeId,
+    targetRole,
+    interviewType,
+    difficulty,
+    language,
+    resumeFile: req.file,
+  });
+
   return res
     .status(200)
-    .json(new ApiResponse(200, result, "Mock Interview Setup successfully "));
+    .json(new ApiResponse(200, result, "Mock Interview Setup successfully"));
 });
 
-const getInterviewStatus = async (req, res) => {
+const getInterviewStatus = asyncHandler(async (req, res) => {
   const { jobId } = req.params;
+
   const statusData = await getValue(`job-status:${jobId}`);
 
   if (!statusData) {
@@ -30,7 +43,7 @@ const getInterviewStatus = async (req, res) => {
   return res
     .status(200)
     .json(new ApiResponse(200, statusData, "Status fetched"));
-};
+});
 
 const interviewQuestionAnswer = asyncHandler(async (req, res) => {
   const user = req.user._id;
@@ -79,8 +92,9 @@ const AiInterviewspeak = asyncHandler(async (req, res) => {
   return res.send(audioBuffer);
 });
 
-export const PreviousInterview = async (req, res) => {
+const PreviousInterview = asyncHandler(async (req, res) => {
   const owner = req.user._id;
+
   const result = await PreviousInterviewReport(owner);
 
   return res
@@ -92,11 +106,12 @@ export const PreviousInterview = async (req, res) => {
         "Latest Resume Analysis Report fetched successfully",
       ),
     );
-};
+});
 
 export {
   MockInterview,
   getInterviewStatus,
   interviewQuestionAnswer,
   AiInterviewspeak,
+  PreviousInterview,
 };

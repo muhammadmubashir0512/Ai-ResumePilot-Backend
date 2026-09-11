@@ -1,6 +1,6 @@
 import { Router } from "express";
 import verifyJWT from "../middleware/auth.middleware.js";
-import { avgUserStats } from "../controllers/resumeAnalsys.controller.js";
+import { avgUserStats } from "../controllers/user.controller.js";
 import {
   getUser,
   PasswaordUpdate,
