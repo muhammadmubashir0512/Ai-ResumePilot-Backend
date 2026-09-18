@@ -10,6 +10,13 @@ export const LoginUser = async ({ email, password }) => {
     throw new ApiError(400, "User not found");
   }
 
+  if (!existedUser.onSignupVerified) {
+    throw new ApiError(
+      400,
+      "Please verify your email first. By doing again Signup Process",
+    );
+  }
+
   const passwordCheck = await existedUser.isPasswordCorrect(password);
   if (!passwordCheck) {
     throw new ApiError(400, "Incorrect Password");
