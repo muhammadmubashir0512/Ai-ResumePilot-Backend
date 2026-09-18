@@ -1,4 +1,3 @@
-export const bullMqConnection = {
-  host: process.env.REDIS_HOST,
-  port: process.env.REDIS_PORT,
-};
+import IORedis from "ioredis";
+
+export const bullMqConnection = new IORedis(process.env.REDIS_URL);
