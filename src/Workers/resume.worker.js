@@ -20,9 +20,6 @@ const worker = new Worker(
   "resume-analysis",
   async (job) => {
     try {
-      console.log("🚀 JOB RECEIVED:", job.id);
-      console.log("JOB NAME:", job.name);
-      console.log("JOB DATA:", job.data);
       await setValue(
         `job-status:${job.data.resumeId}`,
         { stage: "parsing_pdf", status: "processing" },
